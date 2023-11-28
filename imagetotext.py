@@ -1,3 +1,6 @@
+pip install pytesseract
+pip install pdfplumber
+
 import streamlit as st
 from PIL import Image
 import pytesseract
