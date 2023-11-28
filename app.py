@@ -1,41 +1,58 @@
-import easyocr as ocr  #OCR
-import streamlit as st  #Web App
-from PIL import Image #Image Processing
-import numpy as np #Image Processing 
+!pip install streamlit
+!pip install pytesseract
+!pip install pdfplumber
 
-#title
-st.title("Easy OCR - Extract Text from Images")
+import streamlit as st
+from PIL import Image
+import pytesseract
+import pdfplumber
 
-#image uploader
-image = st.file_uploader(label = "Upload your image here",type=['png','jpg','jpeg'])
+st.title("Extracting Texts from Image and PDF")
 
+# File uploader (supports both images and PDFs)
+uploaded_file = st.file_uploader(label="Upload your file here", type=["png", "jpg", "jpeg", "pdf"])
 
-@st.cache
-def load_model(): 
-    reader = ocr.Reader(['en'],model_storage_directory='.')
-    return reader 
+def extract_text_from_image(image):
+    # Convert image to grayscale
+    gray_image = image.convert('L')
 
-reader = load_model() #load model
+    # Apply thresholding to binarize the image
+    thresh = 127
+    binary_image = gray_image.point(lambda x: 0 if x < thresh else 255)
 
-if image is not None:
+    # Extract text using Pytesseract
+    text = pytesseract.image_to_string(binary_image, config='--psm 10')
+    return text
+if uploaded_file is not None:
+    file_extension = uploaded_file.name.split(".")[-1]
 
-    input_image = Image.open(image) #read image
-    st.image(input_image) #display image
+    if file_extension in ["png", "jpg", "jpeg"]:
+        # Handle image files
+        input_image = Image.open(uploaded_file)  # Read image
+        st.image(input_image)  # Display image
 
-    with st.spinner("🤖 AI is at Work! "):
-        
+        extracted_text = extract_text_from_image(input_image)
+        st.write(extracted_text)
 
-        result = reader.readtext(np.array(input_image))
+        # Display successful message
+        st.balloons()
 
-        result_text = [] #empty list for results
+    elif file_extension == "pdf":
+        # Handle PDF files
+        with pdfplumber.open(uploaded_file) as pdf:
+            pages = pdf.pages
 
+            extracted_text = []
+            for page in pages:
+                page_image = page.to_image(resolution=200)
+                extracted_text.append(extract_text_from_image(page_image))
 
-        for text in result:
-            result_text.append(text[1])
+        st.write(extracted_text)
 
-        st.write(result_text)
-    #st.success("Here you go!")
-    st.balloons()
+        # Display successful message
+        st.balloons()
+
+    else:
+        st.write("Unsupported file format. Please upload an image (PNG, JPG, JPEG) or PDF file.")
 else:
-    st.write("Upload an Image")
-
+    st.write("Upload an image or PDF file")
